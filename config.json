@@ -1,0 +1,113 @@
+{
+  "model_architecture": {
+    "hidden_size": 2560,
+    "num_hidden_layers": 3,
+    "layers_per_expert_block": 8,
+    "recursion_mode": "MoR",
+    "max_seq_len": 512,
+    "causal": true,
+
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "mla_dv": 128,
+    "mla_dpe": 64,
+
+    "dropout_p": 0.0,
+    "norm_eps": 1e-6,
+    "use_te_fp8": true,
+    "ffn_bf16_only": true,
+    "ffn_act": "silu",
+
+    "moe_hidden_expansion": 2.0,
+
+    "use_depth_embed": false,
+    "depth_embed_std": 0.02
+  },
+
+  "router": {
+    "router_keep_policy": "quota",
+    "router_temperature": 1.8,
+    "router_eps_explore": 0.0,
+    "router_stochastic_quota": false,
+
+    "router_keep_rate_target": 0.55,
+    "router_keep_penalty_coeff": 0.10,
+    "router_lb_coeff": 0.30,
+    "router_entropy_coeff": 0.01,
+    "router_aux_loss_coeff": 0.05
+  },
+
+  "adapters": {
+    "lora_depth_start": 1,
+    "lora_num": 1,
+    "lora_rank": 4,
+    "lora_alpha": 1.0,
+    "lora_temperature": 1.2,
+    "lora_gate_hidden": 0,
+    "lora_min_usage_warmup": 0.08,
+    "lora_usage_target": 0.10,
+    "lora_usage_coeff": 0.01,
+    "lora_gate_bias_nonzero_init": 0.05,
+    "lora_temp_anneal_enabled": true,
+    "lora_temp_anneal_start_epoch": 3,
+    "lora_temp_anneal_end_epoch": 6,
+    "lora_temp_anneal_from": 1.2,
+    "lora_temp_anneal_to": 0.8
+  },
+
+
+  "ffn_moe_compat": {
+    "enabled": false,
+    "num_ffn_experts": 1,
+    "top_k_ffn_moe": 1,
+    "num_shared_experts_ffn_moe": 0,
+    "moe_z_loss": 0.001
+  },
+
+  "loss_coeff": {
+    "ffn_moe_aux_coeff": 0.01
+  },
+
+  "data_and_paths": {
+    "tokenizer_path": "./Qwen3-4B",
+    "processed_dataset_path": "./wikitext_processed_qwen",
+    "save_dir": "./rmoe_checkpoints"
+  },
+
+  "training": {
+    "device": "cuda:0",
+    "precision": "bf16",
+    "num_workers": 14,
+
+    "batch_size": 16,
+    "val_batch_size": 16,
+
+    "optimizer": "adamw8bit",
+    "lr": 3e-5,
+    "betas": [0.9, 0.95],
+    "weight_decay": 0.0,
+
+    "warmup_steps": 2000,
+    "fp8_warmup_steps": 1000,
+
+    "gradient_accumulation_steps": 16,
+    "train_epochs": 10,
+    "seed": 123,
+
+    "pad_align": 128,
+    "router_min_pack_tokens": 8192,
+    "max_pack_tokens": 8192,
+    "pack_num_chunks": 2,
+
+    "use_triton_glue": true,
+    "use_cudagraphs": false,
+    "compile_attn": false,
+
+    "dense_fallback_frac": 0.0,
+    "ffn_pad_mode": "align",
+    "log_interval": 100,
+    "checkpoint_interval": 1000,
+    "keep_last_checkpoints": 2,
+    "timing_enable": false
+  }
+}
