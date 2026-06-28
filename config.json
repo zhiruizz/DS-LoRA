@@ -21,7 +21,7 @@
     "router_aux_loss_coeff": 0.05
   },
   "adapters": {
-    "lora_depth_start": 2,
+    "lora_depths": [2],
     "lora_num": 1,
     "lora_rank": 2,
     "lora_alpha": 1.0,
