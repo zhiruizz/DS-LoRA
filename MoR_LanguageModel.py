@@ -26,9 +26,10 @@ class MoR_LanguageModel(nn.Module):
         def get(key: str, default: Any = None) -> Any:
             if key in self.cfg:
                 return self.cfg[key]
-            adapters = self.cfg.get("adapters", {})
-            if isinstance(adapters, dict) and key in adapters:
-                return adapters[key]
+            for section in ("model_architecture", "router", "adapters", "training", "data_and_paths"):
+                nested = self.cfg.get(section, {})
+                if isinstance(nested, dict) and key in nested:
+                    return nested[key]
             return default
 
         vocab_size = int(get("vocab_size"))
