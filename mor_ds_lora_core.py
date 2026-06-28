@@ -244,12 +244,52 @@ class LoRAGate(nn.Module):
         return self.net(x) / self.temperature
 
 
+def _parse_lora_depths(raw_depths: Any, num_recursions: int, fallback_start: int) -> tuple[int, ...]:
+    if raw_depths is None:
+        start = max(0, min(int(fallback_start), num_recursions - 1))
+        return tuple(range(start, num_recursions))
+
+    if isinstance(raw_depths, int):
+        values = [raw_depths]
+    elif isinstance(raw_depths, str):
+        text = raw_depths.strip()
+        if not text:
+            values = []
+        else:
+            values = [int(part.strip()) for part in text.split(",") if part.strip()]
+    else:
+        values = list(raw_depths)
+
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        depth = int(value)
+        if depth < 0:
+            depth = num_recursions + depth
+        if depth < 0 or depth >= num_recursions:
+            raise ValueError(
+                f"LoRA recursion depth {value} is out of range for num_hidden_layers={num_recursions}."
+            )
+        if depth not in seen:
+            normalized.append(depth)
+            seen.add(depth)
+    return tuple(normalized)
+
+
 class MoRBackbone(nn.Module):
     def __init__(self, cfg: Dict[str, Any], causal: bool = True):
         super().__init__()
 
         def get(key: str, default: Any = None) -> Any:
-            return cfg.get(key, default) if isinstance(cfg, dict) else getattr(cfg, key, default)
+            if isinstance(cfg, dict):
+                if key in cfg:
+                    return cfg[key]
+                for section in ("model_architecture", "router", "adapters", "training", "data_and_paths"):
+                    nested = cfg.get(section, {})
+                    if isinstance(nested, dict) and key in nested:
+                        return nested[key]
+                return default
+            return getattr(cfg, key, default)
 
         hidden_size = int(get("hidden_size"))
         self.num_recursions = int(get("num_hidden_layers"))
@@ -288,13 +328,14 @@ class MoRBackbone(nn.Module):
         self.lora_alpha = float(get("lora_alpha", 1.0))
         self.lora_usage_target = float(get("lora_usage_target", 0.10))
         self.lora_usage_coeff = float(get("lora_usage_coeff", 0.01))
-        self.lora_depth_start = int(get("lora_depth_start", self.num_recursions - 1))
-        self.lora_depth_start = max(0, min(self.lora_depth_start, self.num_recursions - 1))
+        fallback_start = int(get("lora_depth_start", self.num_recursions - 1))
+        self.lora_depths = _parse_lora_depths(get("lora_depths", None), self.num_recursions, fallback_start)
+        self.lora_depth_set = set(self.lora_depths)
 
         self.lora_adapters = nn.ModuleList()
         self.lora_gates = nn.ModuleList()
         for depth in range(self.num_recursions):
-            if self.lora_num > 0 and depth >= self.lora_depth_start:
+            if self.lora_num > 0 and depth in self.lora_depth_set:
                 self.lora_adapters.append(nn.ModuleList([
                     LoRAAdapter(
                         hidden_size,
@@ -399,6 +440,7 @@ class MoRBackbone(nn.Module):
             "active_token_counts": active_token_counts,
             "active_keep_rates": active_keep_rates,
             "lora_adapter_usage_rates": lora_usage_rates,
+            "lora_depths": list(self.lora_depths),
             "depth_used": self.num_recursions,
         }
         return {
